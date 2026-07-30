@@ -1,10 +1,10 @@
-# Rule-Based Music Recommender
+# 🎵 MoodDial
 
-## Original Project (Modules 3)
-This project began as a **rule-based music recommendation engine** built in Modules 1–3. Its original goal was to take a small song catalog (`songs.csv`) and a user "taste profile," score every song against that profile using a weighted point system, and return a ranked top-K list of recommendations. The original scope focused on getting the scoring math right and understanding how small design choices (like feature weighting) shape recommendation behavior.
+## Original Project (Modules 1–3)
+This project began as **MoodDial**, a rule-based music recommendation engine built in Modules 1–3. Its original goal was to take a small song catalog (`songs.csv`) and a user "taste profile," score every song against that profile using a weighted point system, and return a ranked top-K list of recommendations. The original scope focused on getting the scoring math right and understanding how small design choices (like feature weighting) shape recommendation behavior.
 
 ## Title and Summary
-**MoodDialr** is a lightweight, explainable recommendation system. Instead of a black-box model, it uses a transparent point-based scoring formula, so every recommendation can be traced back to *why* it was ranked where it was. This matters because the assignment's goal isn't just "does it recommend songs" — it's "can you explain and defend the logic behind those recommendations."
+**MoodDial** is a lightweight, explainable recommendation system. Instead of a black-box model, it uses a transparent point-based scoring formula, so every recommendation can be traced back to *why* it was ranked where it was. This matters because the assignment's goal isn't just "does it recommend songs" — it's "can you explain and defend the logic behind those recommendations."
 
 ## Architecture Overview
 The data flow is a simple three-stage pipeline:
@@ -123,5 +123,42 @@ Ran 12 tests in 0.005s
 OK
 ```
 The main reliability weakness found during testing: songs with energy values within ~0.05 of each other produce nearly identical scores (see "Gym Hero" in Example 1 above), which can make close calls feel arbitrary — see `model_card.md` for what this taught me.
+
+## Evaluation Harness (`evaluate.py`)
+Separate from the unit tests, `evaluate.py` is a standalone end-to-end evaluation script — it runs the full recommender against 5 predefined scenarios (exact matches, partial fallback, full fallback, and an edge-case oversized request) and prints a pass/fail result plus a **confidence score** for each, rather than just asserting internals. Run with:
+```bash
+python evaluate.py
+```
+Actual output:
+```
+========================================================================
+EVALUATION SUMMARY
+========================================================================
+[PASS] Rock/Intense — exact genre+mood match available
+       detail:     top pick "Thunder Circuit" — genre_points=2.0, mood_points=1.0
+       confidence: 0.01
+
+[PASS] Lofi/Chill — exact genre+mood match available
+       detail:     top pick "Rainy Shelf" — genre_points=2.0, mood_points=1.0
+       confidence: 0.01
+
+[PASS] Jazz/Euphoric — mood not in catalog (partial fallback)
+       detail:     top pick "Corner Booth" — genre_points=2.0 (mood disabled by fallback)
+       confidence: 0.01
+
+[PASS] Flamenco/Passionate — genre AND mood not in catalog (full fallback)
+       detail:     3 warning(s) logged, 3 result(s) still returned
+       confidence: 0.0
+
+[PASS] Oversized top_k request (50 on a 20-song catalog)
+       detail:     20 results returned for a top_k request larger than the catalog
+       confidence: 0.01
+
+------------------------------------------------------------------------
+Result: 5/5 cases passed
+Average confidence: 0.01
+========================================================================
+```
+**Key finding:** all 5 cases pass, but confidence scores are consistently near-zero — meaning the top recommendation rarely beats the runner-up by a meaningful margin. This is a direct consequence of the catalog containing multiple similar songs from the same artist/genre pairing (e.g., "Thunder Circuit" and "Storm Runner" are both rock/intense with energy 0.89 and 0.91). The recommender is picking a *correct* answer, but not a *confidently distinct* one. See `model_card.md` for what this reveals about the system's limitations.
 
 > Note: the reflection on responsible-AI collaboration, system limitations, and misuse considerations lives in **`model_card.md`**, not here, per the assignment's rubric.
